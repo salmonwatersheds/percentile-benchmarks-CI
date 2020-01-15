@@ -16,3 +16,9 @@ Approach
 --------
 
 We consider two alternative approaches to generating confidence intervals on the HS benchmarks that account for autocorrelation in the time-series of spawner abundances. The first is a model-based approach and the second is known as "block bootstrapping".
+
+### Model-based approach
+
+<!-- ``` -->
+<!-- x <- 20 -->
+<!-- ``` -->
