@@ -203,12 +203,14 @@ modelBoot <- function(
 	n <- length(series)
 	
 	# Fit model to estimate autocorrelation
-	ar.fit <- ar.mle(
+	ar.fit <- ar(
 		log(series), # spawner time series
 		demean = TRUE, # Estimate mean spawners
 		intercept = FALSE, # Intercept = 0 for autocorrelation
 		order.max = numLags, # lag for autocorrelation
-		aic = FALSE # estimate autocorrelation for all numLags 
+		aic = FALSE, # estimate autocorrelation for all numLags 
+		method = "yule-walker", # only method that allows for NAs
+		na.action = na.pass #
 	) # standard OLS
 	
 	# Matrices to store bootstrapped residuals and spawners (obs)
