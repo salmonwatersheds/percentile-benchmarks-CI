@@ -158,13 +158,15 @@ The model-based approach is another form of bootstrapping, but rather than re-sa
 numLags <- 1
 
 # Fit model to estimate autocorrelation
-ar.fit <- ar.mle(
-    log(series), # spawner time series
-    demean = TRUE, # Estimate mean spawners
-    intercept = FALSE, # Intercept = 0 for autocorrelation
-    order.max = numLags, # lag for autocorrelation
-    aic = FALSE # estimate autocorrelation for all numLags 
-) # standard OLS
+ar.fit <- ar(
+        log(series), # spawner time series
+        demean = TRUE, # Estimate mean spawners
+        intercept = FALSE, # Intercept = 0 for autocorrelation
+        order.max = numLags, # lag for autocorrelation
+        aic = FALSE, # estimate autocorrelation for all numLags 
+        method = "yule-walker", # only method that allows for NAs
+        na.action = na.pass
+    ) 
 ```
 
 Next, we extract the residuals from the fitted series and generate `nBoot` new time series of residuals, `res.star`.
