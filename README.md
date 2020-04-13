@@ -1,7 +1,7 @@
 Constructing confidence intervals on Historical Spawners benchmarks
 ================
 Stephanie Peacock
-2020-04-05
+2020-04-13
 
 This project aims to compare different methods to constructing 95% confidence intervals on Historical Spawners (HS) benchmarks for inclusion in the [Pacific Salmon Explorer](www.salmonexplorer.ca).
 
@@ -10,7 +10,7 @@ Background
 
 To date, the assessments of biological status in the Salmon Explorer have provided confidence intervals for the Stock-Recruitment (SR) benchmarks, but not for the HS benchmarks. The HS benchmarks are calculated as the 25th and 50th percentiles of historical spawner abundance for the CU. (Note that older assessments under the Pacific Salmon Explorer considered the upper HS benchmark to be the 75th percentile of historical spawner abundance.)
 
-![](Figures/SalmonExplorer_screenShotApr52020.png)
+![Fig1](https://github.com/sjpeacock/HistoricalSpawnersCI/blob/master/Figures/SalmonExplorer_screenShotApr52020.PNG)
 
 *Fig. 1: Screen shot of the biological status assessment of chum salmon CU Douglas-Gardner from the Pacific Salmon Explorer from April 5, 2020. Note that the spawner-recruitment benchmarks have confidence intervals, but the historic(al) spawners benchmarks do not.*
 
