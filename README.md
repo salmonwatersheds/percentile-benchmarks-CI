@@ -236,13 +236,13 @@ The true data analysis could be easily applied to other CUs; see the code in `co
 
 The bootstrapped time series of spawner abundances under the different methods illustrate the effect of accounting for autocorrelation (Fig. 2). There is no autocorrelation in the naive bootstrapped time series, but as the block length increases, it is possible to identify chunks from the original time series. In the model-based approach, the same chunks are not there (as it's the residuals and not the original time series being sampled) but there is clearly autocorrelation.
 
-![](Figures/BootstrapSeries.png)
+![Fig2](https://github.com/sjpeacock/HistoricalSpawnersCI/blob/master/Figures/BootstrapSeries.PNG)
 
 *Fig. 2: Three examples of bootstrapped time series (columns) using different approaches (rows). The bootstrapped time series is in black. The original (true) time series is in grey in each panel, and was simulated with autocorrelation of *τ* = 0.6. Horizontal solid red and green lines are the lower and upper HS benchmarks of 25th and 50th percentile of historical spawner abundance, and the dashed horizontal lines are the corresponding benchmarks from the bootstrapped time series. Here, just three examples are shown, but to calculate confidence intervals on benchmarks, this would be repeated thousands of times and the 2.5% and 97.5% quantiles of the resulting bootstrapped benchmarks (dashed lines) would give the confidence interval*
 
 The width of the "true" confidence intervals tended to increase with the magnitude of autocorrelation (Fig. 3), likely due to the relatively short number of years (`n = 50`) in the time series. The model-based approach seemed to most closely match the true confidence intervals across all levels of autocorrelation. Block bootstrapping with a block length of 15 tended to have the smallest confidence intervals on benchmarks, while the model-based approach had the largest. The naive bootstrap did not obviously overestimate confidence intervals (as suggested by [Holt et al. (2018)](http://www.dfo-mpo.gc.ca/csas-sccs/Publications/ResDocs-DocRech/2018/2018_011-eng.html)), especially compared to our "true" confidence intervals.
 
-![](Figures/CI_comparison.png)
+![Fig3](https://github.com/sjpeacock/HistoricalSpawnersCI/blob/master/Figures/CI_comparison.PNG)
 
 *Fig. 3: The lower (red) and upper (green) HS benchmarks (horizontal lines), and "true" confidence intervals from 10,000 simulations using the same underlying biological parameters (red and green shaded polygons). The vertical capped bars show the confidence intervals estimated using naive bootstrap, block bootstrap with block lengths of 5, 10, and 15, and the model-based appraoch. Panels are different underlying levels of temporal autocorrelation in the simulated data from *τ* = 0.1 to *τ* = 0.9.*
 
@@ -250,7 +250,7 @@ The width of the "true" confidence intervals tended to increase with the magnitu
 
 The Douglas-Gardner chum salmon CU is currently classified as amber (Fig. 4). As with the simulated data, the model-based approach produced the widest confidence intervals on the benchmarks, though this would not have changed the status assignment in this case (Fig. 5).
 
-<img src="Figures/DouglasGardnerAbund.png" style="width:60.0%" />
+<img src="https://github.com/sjpeacock/HistoricalSpawnersCI/blob/master/Figures/DouglasGardnerAbund.PNG" alt="Fig4" style="width:60.0%" />
 
 *Fig. 4: Estimated number of spawners in the Douglas-Gardner chum salmon CU on the Central Coast (black line). Lower and upper HS benchmarks are shown by the horizontal red and green lines, respectively. The horizontal dotted line is the geometric mean spawner abundance over the most recent generation, lying between the two benchmarks and thus leading to a status assessment of amber under the HS benchmarks.*
 
