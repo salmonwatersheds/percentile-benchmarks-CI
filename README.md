@@ -254,7 +254,7 @@ The Douglas-Gardner chum salmon CU is currently classified as amber (Fig. 4). As
 
 *Fig. 4: Estimated number of spawners in the Douglas-Gardner chum salmon CU on the Central Coast (black line). Lower and upper HS benchmarks are shown by the horizontal red and green lines, respectively. The horizontal dotted line is the geometric mean spawner abundance over the most recent generation, lying between the two benchmarks and thus leading to a status assessment of amber under the HS benchmarks.*
 
-<img src="Figures/DouglasGardnerComparison.png" style="width:40.0%" />
+<img src="https://github.com/sjpeacock/HistoricalSpawnersCI/blob/master/Figures/DouglasGardnerComparison.PNG" style="width:40.0%" />
 
 *Fig. 5: Status zones defined by the HS benchmarks for Douglas-Garder CU (see Fig. 4). The horizontal dashed line is the current spawner abundance, yielding an amber status for this CI. Confidence intervals on the lower benchmark (dividing red and amber) and upper benchmark (dividing amber and green) are shown by the vertical black bars, calculated using naive bootstrap, block bootstrap with block lengths of 5, 10, and 15, and the model-based appraoch (x-axis).*
 
