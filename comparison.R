@@ -32,6 +32,7 @@ nBoot <- 10000				# Number of iterations in bootstrap and trueCI calculation
 # Set up matrices to store time series and true CI
 
 spawnersTrue <- matrix(NA, nrow = n, ncol = length(tau))
+simDat_all <- list(); length(simDat_all) <- length(tau)
 HS_bench <- matrix(NA, nrow = 2, ncol = length(tau), dimnames = list(c("lower", "upper"), NULL))
 trueCI <- array(rep(NA, 2*2*length(tau)), dim = c(2, 2, length(tau)), dimnames = list(c("2.5%", "97.5%"), c("lower", "upper"), NULL))
 	
@@ -39,8 +40,8 @@ for(k in 1:length(tau)){
 	
 	#------------------------------------------------------------------------------
 	# Simulate spawner recruit data
-	simDat <- simSpawners(seed = 3958, tau = tau[k])
-	spawnersTrue[, k] <- simDat[2:(n + 1), 'spawners']
+	simDat_all[[k]] <- simSpawners(seed = 3958, tau = tau[k])
+	spawnersTrue[, k] <- simDat_all[[k]][2:(n + 1), 'spawners']
 	
 	HS_bench[, k] <- quantile(spawnersTrue[, k], benchmarks)
 	

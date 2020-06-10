@@ -1,7 +1,7 @@
 Constructing confidence intervals on Historical Spawners benchmarks
 ================
 Stephanie Peacock
-2020-04-13
+2020-06-10
 
 This project aims to compare different methods to constructing 95% confidence intervals on Historical Spawners (HS) benchmarks for inclusion in the [Pacific Salmon Explorer](www.salmonexplorer.ca).
 
@@ -244,6 +244,8 @@ The width of the "true" confidence intervals tended to increase with the magnitu
 
 ![Fig3](https://github.com/sjpeacock/HistoricalSpawnersCI/blob/master/Figures/CI_comparison.PNG)
 
+At *τ* = 0.9 (i.e., high temporal autocorrelation), the “true” CIs were much wider than any of the estimated CIs, including the model-based CIs. Without further investigation, the potential causes of this mismatch are unknown. Possibly, it is due to a shortcoming of the simulation approach. At high temporal autocorrelation, the relatively short simulated time series is very dependent on the initial random deviate. Alternatively, the mismatch may indicate a caveat to the model-based approach: the time-series switches between a series of low to high abundances (and vice versa) because of the SR relationship, which is not well captured by the AR(1) model. Indeed, although the model-based approach most closely captured the true width of the CIs, it tended to overestimate the upper confidence limits when *τ* ≤ 0.6, again perhaps because the simple AR(1) model doesn’t capture the density dependence in “true” data (i.e., very high abundances are less likely in “true” data due to over compensation).
+
 *Fig. 3: The lower (red) and upper (green) HS benchmarks (horizontal lines), and "true" confidence intervals from 10,000 simulations using the same underlying biological parameters (red and green shaded polygons). The vertical capped bars show the confidence intervals estimated using naive bootstrap, block bootstrap with block lengths of 5, 10, and 15, and the model-based appraoch. Panels are different underlying levels of temporal autocorrelation in the simulated data from *τ* = 0.1 to *τ* = 0.9.*
 
 #### True data
@@ -262,7 +264,7 @@ The Douglas-Gardner chum salmon CU is currently classified as amber (Fig. 4). As
 
 The model-based confidence intervals most closely matched the "true" confidence intervals from the simulated data. They were also the widest, and thus the most conservative, when applied to real data from a Central Coast chum CU. The model-based approach, which accounts for autocorrelation in the time series, may be the best approach for calculating confidence intervals on Historical Spawners benchmarks.
 
-The model-based approach we applied is very simple, estimating just the mean abundance and lag-1 autocorrelation in the time series. Further work may incorporate life-history details and/or consider different time-lags for the autocorrelation used in simulating time series.
+The model-based approach we applied is very simple, estimating just the mean abundance and lag-1 autocorrelation in the time series. Further work may incorporate life-history details and/or consider different time-lags for the autocorrelation used in simulating time series. Applying a more sophisticated model to estimate autocorrelation and simulate the bootstrapped time series may reduce the positive bias in model-based CIs that we observed in the simulated examples.
 
 Appendix: Functions for calculating confidence intervals
 --------------------------------------------------------
