@@ -157,10 +157,10 @@ blockBoot <- function(
 		
 		obs.star[, i] <- series[newIndex[1:n]]
 		
-		HS_benchBoot[i, ] <- quantile(obs.star[, i], benchmarks)
+		HS_benchBoot[i, ] <- quantile(obs.star[, i], benchmarks, na.rm = TRUE)
 	} # end bootstrap loop
 	
-	HS_benchCI <- apply(HS_benchBoot, 2, quantile, c(0.025, 0.975))
+	HS_benchCI <- apply(HS_benchBoot, 2, quantile, c(0.025, 0.975), na.rm = TRUE)
 	
 	return(list(CI = HS_benchCI, permutedSeries = obs.star))
 	
@@ -238,10 +238,10 @@ modelBoot <- function(
 			obs.star.log[(numLags + j), i] <- ar.fit$x.mean + ar.fit$ar %*% (obs.star.log[j:(j + numLags - 1), i] - ar.fit$x.mean) + res.star[j, i]
 		} #end j
 		
-		HS_benchBoot[i, ] <- quantile(exp(obs.star.log[(numLags + 1):(numLags + n), i]), benchmarks)
+		HS_benchBoot[i, ] <- quantile(exp(obs.star.log[(numLags + 1):(numLags + n), i]), benchmarks, na.rm = TRUE)
 	} # end bootstrap loop
 	
-	HS_benchCI <- apply(HS_benchBoot, 2, quantile, c(0.025, 0.975))
+	HS_benchCI <- apply(HS_benchBoot, 2, quantile, c(0.025, 0.975), na.rm = TRUE)
 	
 	obs.star <- exp(tail(obs.star.log, n))
 	
