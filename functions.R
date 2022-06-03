@@ -224,7 +224,7 @@ modelBoot <- function(
 		NA, 
 		nrow = nBoot, 
 		ncol = 2, 
-		dimnames = list(c(1:nBoot), c("lower", "upper")))
+		dimnames = list(c(1:nBoot), c("lowerBM", "upperBM")))
 	
 	# Model bootstrap:
 	for(i in 1:nBoot){
