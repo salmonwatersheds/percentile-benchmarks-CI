@@ -14,6 +14,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 ```
 
 ```{r, include = FALSE}
@@ -29,6 +30,8 @@ wd_popInd <- gsub("percentile-benchmarks-CI","population-indicators",wd)
 wd_biostatus <- paste0(wd_popInd,"/biological-status")
 
 source(paste0(wd_biostatus,"/code/functions.R"))
+source(paste0(wd_popInd,"/code/functions_general.R"))
+source(paste0(wd_popInd,"/code/colours.R"))
 
 # Import estimated spawner abundance
 cuspawnerabundance <- read.csv(paste0(wd_Data,"/cuspawnerabundance.csv"), header = T)
@@ -40,345 +43,344 @@ dataset101_biological_status <- read.csv(paste0(wd_Data,"/dataset101_biological_
 # Import benchmarks
 dataset102_benchmarks <- read.csv(paste0(wd_Data,"/dataset102_benchmarks_2025-06-03.csv"),
 																	header = T)
+
+conservationunits_decoder <- read.csv(paste0(wd_Data,"/conservationunits_decoder.csv"),
+																	header = T)
+
+benchmarks <- c(.25,.75)
+nBoot <- 5000
+numLags <- 1
 ```
 
+The following CUs have time series cause the percentile benchmarks to fall outside the simulated confidence interval (CI), which are obtained by combining bootstrapping and auto-regression modelling. 
 
-```{r}
+The goal of the script is to understand the cause(s) of those issues and to compare the CI obained with other approaches: naive bootstrapping and block bootstrapping.
+
+# Issue
+
+```{r, echo=FALSE}
 #'* ISSUE *
 #' all the cases where the percentile benchmarks are outside their CI
 
-cond <- ((benchmarks_cu$percentile_upper > benchmarks_cu$percentile_upper_975) |
-           (benchmarks_cu$percentile_upper < benchmarks_cu$percentile_upper_025) |
-           (benchmarks_cu$percentile_lower > benchmarks_cu$percentile_lower_975) |
-           (benchmarks_cu$percentile_lower < benchmarks_cu$percentile_lower_025)) &
-  !is.na(benchmarks_cu$percentile_upper)
+cond <- ((dataset102_benchmarks$percentile_upper > dataset102_benchmarks$percentile_upper_975) |
+           (dataset102_benchmarks$percentile_upper < dataset102_benchmarks$percentile_upper_025) |
+           (dataset102_benchmarks$percentile_lower > dataset102_benchmarks$percentile_lower_975) |
+           (dataset102_benchmarks$percentile_lower < dataset102_benchmarks$percentile_lower_025)) &
+  !is.na(dataset102_benchmarks$percentile_upper)
 
-show <- benchmarks_cu[cond,c("region","species_name","cu_name_pse","cuid",
+show <- dataset102_benchmarks[cond,c("species_name","cu_name_pse","cuid",
                      "percentile_lower_025","percentile_lower","percentile_lower_975",
                      "percentile_upper_025","percentile_upper","percentile_upper_975")]
 
-show 
-
-# cond_here <- cond & 
-#   benchmarks_cu$cuid %in% cuid_biostat
-# 
-# cond_here <- cond 
-# 
-# cond_here <- cond &
-#   benchmarks_cu$cuid %in% cuid_biostat & 
-#   biological_status_cu$psf_status_type == "percentile" & !is.na(biological_status_cu$psf_status_type)
-# 
-# show <- benchmarks_cu[cond_here,c("region","species_name","cu_name_pse","cuid",
-#                                   "percentile_lower_025","percentile_lower","percentile_lower_975",
-#                                   "percentile_upper_025","percentile_upper","percentile_upper_975")]
-# 
-# show <- benchmarks_cu[cond_here,c("region","species_name","cu_name_pse","cuid")]
-
-show$psf_status_code <- sapply(show$cuid,function(cuid){
-  cond <- biological_status_cu$cuid == cuid
-  return(biological_status_cu$psf_status_code[cond])
+show$region <- sapply(show$cuid,function(cuid){
+	cond <- conservationunits_decoder$cuid == cuid
+	return(conservationunits_decoder$region_abbr[cond])
 })
 
-show$psf_status_type <- sapply(show$cuid,function(cuid){
-  cond <- biological_status_cu$cuid == cuid
-  return(biological_status_cu$psf_status_type[cond])
-})
-
-cond <- ((benchmarks_cu$percentile_upper < benchmarks_cu$percentile_upper_975) &
-           (benchmarks_cu$percentile_upper > benchmarks_cu$percentile_upper_025) &
-           (benchmarks_cu$percentile_lower < benchmarks_cu$percentile_lower_975) &
-           (benchmarks_cu$percentile_lower > benchmarks_cu$percentile_lower_025)) &
-  !is.na(benchmarks_cu$percentile_upper)
-
-show_good <- benchmarks_cu[cond,c("region","species_name","cu_name_pse","cuid",
-                             "percentile_lower_025","percentile_lower","percentile_lower_975",
-                             "percentile_upper_025","percentile_upper","percentile_upper_975")]
-
-show_good$psf_status_code <- sapply(show_good$cuid,function(cuid){
-  cond <- biological_status_cu$cuid == cuid
-  return(biological_status_cu$psf_status_code[cond])
-})
-
-show_good$psf_status_type <- sapply(show_good$cuid,function(cuid){
-  cond <- biological_status_cu$cuid == cuid
-  return(biological_status_cu$psf_status_type[cond])
-})
-
+show <- show[,c(ncol(show),2:(ncol(show)-1))] 
+rownames(show) <- NULL
 show
+```
 
-i <- 1 # Central Coast      Chinook                CK  509       Docee code = 8
-i <- 9 # Yukon      Chinook                CK 1211 Upper Yukon code = 3   
-i <- 10 #  Yukon         Chum                CM 1213 Middle Yukon 
-i <- 8
-cond <- biological_status_cu$cuid == show$cuid[i]
-biological_status_cu[cond,]
-plot_spawnerAbundance_benchmarks_fun(cuid = show$cuid[i],
-                                     cuspawnerabundance = spawnerabundance_cu, 
-                                     dataset101_biological_status = biological_status_cu, 
-                                     dataset102_benchmarks = benchmarks_cu, 
-                                     #dataset103_output = cuspawnerabund_smooth,
+Among those time series are those with benchmark(s) falling above the CI, which could be due to a steady decline, and those where the benchmark(s) fall below.
+
+## The benchmark(s) fall above the CI(s)
+
+```{r,echo=FALSE}
+cond <- show$percentile_lower > show$percentile_lower_975 |
+	show$percentile_upper > show$percentile_upper_975
+
+show[cond,]
+```
+
+```{r, echo = FALSE}
+i <- 1
+plot_spawnerAbundance_benchmarks_fun(cuid = show[cond,]$cuid[i],
+                                     cuspawnerabundance = cuspawnerabundance, 
+                                     dataset101_biological_status = dataset101_biological_status, 
+                                     dataset102_benchmarks = dataset102_benchmarks, 
                                      conservationunits_decoder = conservationunits_decoder, 
                                      figure_print = F, # figure_print, 
                                      wd_figures = wd_figures)
+```
 
-ar_cuid_hist(cuid = show$cuid[i], nBoot = 5000, numLags = 1, 
-            benchmarks = c(.25,.75), 
-            spawnerabundance_cu = spawnerabundance_cu)
+```{r, echo=FALSE}
+bootOutput <- bootstrap_ar_cuid_fun(cuid = show[cond,]$cuid[i], 
+																		nBoot = nBoot, numLags = numLags, 
+																		benchmarks = benchmarks, 
+																		cuspawnerabundance = cuspawnerabundance)
 
+layout(matrix(1))
+par(mar = c(4.5,4.5,2.5,1))
+bootstrap_cuid_hist_fun(bootOutput = bootOutput, benchmarks = benchmarks, 
+												main = "Bootstrap & auto-regression", legend_show = F)
+```
 
-i <- 1 
+```{r, echo = FALSE}
 i <- 2
-i <- 3
-i <- 6
-cond <- biological_status_cu$cuid == show_good$cuid[i]
-biological_status_cu[cond,]
-plot_spawnerAbundance_benchmarks_fun(cuid = show_good$cuid[i],
-                                     cuspawnerabundance = spawnerabundance_cu, 
-                                     dataset101_biological_status = biological_status_cu, 
-                                     dataset102_benchmarks = benchmarks_cu, 
-                                     #dataset103_output = cuspawnerabund_smooth,
+plot_spawnerAbundance_benchmarks_fun(cuid = show[cond,]$cuid[i],
+                                     cuspawnerabundance = cuspawnerabundance, 
+                                     dataset101_biological_status = dataset101_biological_status, 
+                                     dataset102_benchmarks = dataset102_benchmarks, 
                                      conservationunits_decoder = conservationunits_decoder, 
                                      figure_print = F, # figure_print, 
                                      wd_figures = wd_figures)
+```
 
-ar_cuid_hist(cuid = show_good$cuid[i], nBoot = 5000, numLags = 2, 
-            benchmarks = c(.25,.75), 
-            spawnerabundance_cu = spawnerabundance_cu)
+```{r, echo=FALSE}
+bootOutput <- bootstrap_ar_cuid_fun(cuid = show[cond,]$cuid[i], 
+																		nBoot = nBoot, numLags = numLags, 
+																		benchmarks = benchmarks, 
+																		cuspawnerabundance = cuspawnerabundance)
 
-
-ar_model_phi <- data.frame(cuid = c(show$cuid,show_good$cuid),
-                           phi = NA)
-for(cuid in c(show$cuid,show_good$cuid)){
-  ar_here <- ar_cuid_fun(cuid = cuid,nBoot = 5000, numLags = 1, benchmarks =  c(.25,.75), 
-                         spawnerabundance_cu = spawnerabundance_cu)
-  
-  cond <- ar_model_phi$cuid == cuid
-  ar_model_phi$phi[cond] <- ar_here$ar_model$x.mean
-}
-
-ar_model_phi$issue <- F
-cond <- ar_model_phi$cuid %in% show$cuid 
-ar_model_phi$issue[cond] <- T
-
-graphics.off()
-stripchart(phi ~ issue, data = ar_model_phi, vertical = T, pch = 1, cex = 2)
-
-x_max <- max(ar_model_phi$phi)
-x_min  <- min(ar_model_phi$phi)
-
-cond <- !ar_model_phi$issue
-h_noIssue <- hist(ar_model_phi$phi[cond], plot = F)
-cond <- ar_model_phi$issue
-h_Issue <- hist(ar_model_phi$phi[cond], plot = F)
-plot(h_noIssue, main = "", xlab = "Autocorrelation (phi)", xlim = c(x_min,x_max),
-     col = alpha("grey50",.5))
-plot(h_Issue, xlim = c(x_min,x_max),
-     add = T, col = alpha("red",.5))
-
-# Block boostrapping
-# from
-# https://github.com/salmonwatersheds/percentile-benchmarks-CI
-bootstrapBlock_cuid_fun <- function(cuid, nBoot = 5000, 
-                                    benchmarks = c(.25,.5,.75),
-                                    spawnerabundance_cu,
-                                    blockLength = 10){
-  
-  cond_cuid <- spawnerabundance_cu$cuid == cuid[1] # only one cuid at a time
-  
-  spawnerAbundance <- spawnerabundance_cu$estimated_count[cond_cuid]
-  spawnerAbundance[spawnerAbundance < 0 & !is.na(spawnerAbundance)] <- NA
-  spawnerAbundance[spawnerAbundance == 0 & !is.na(spawnerAbundance)] <- 1
-  
-  spawnerAbundance <- spawnerAbundance[!is.na(spawnerAbundance)]
-  
-  n <- length(spawnerAbundance)
-  nBlocks <- ceiling(n/blockLength) # Number of blocks to be created
-  
-  # Matrix to store bootstrapped values of CI
-  perc_benchBoot2 <- matrix(
-    NA, 
-    nrow = nBoot, 
-    ncol = length(benchmarks), 
-    dimnames = list(c(1:nBoot), paste0("benchmark_",benchmarks)))
-  
-  # Block bootstrap:
-  for(i in 1:nBoot){ # for each iteration
-    
-    # Select starting points for each blocks
-    j <- sample(1:(n - blockLength + 1), 
-                size = nBlocks, replace = TRUE)
-    
-    # Indices of new time series to be constructed
-    newIndex <- rep(j, each = blockLength) + rep(0:(blockLength - 1), nBlocks)
-    
-    # Block-sampled spawner timeseries
-    series.i <- series[newIndex[1:n]]
-    
-    perc_benchBoot2[i, ] <- quantile(series.i, benchmarks, na.rm = T)
-  } # end bootstrap loop
-  
-  perc_benchCI_block <- apply(perc_benchBoot2, 2, quantile, c(0.025, 0.975))
-  perc_benchCI_block
-  
-  TO CONTINUE
-  
-}
-
-# Function to fit 
-ar_cuid_fun <- function(cuid, nBoot = 5000, numLags = 1, benchmarks = c(.25,.5,.75),
-                        spawnerabundance_cu,aic = F){
-  
-  cond_cuid <- spawnerabundance_cu$cuid == cuid[1] # only one cuid at a time
-  
-  spawnerAbundance <- spawnerabundance_cu$estimated_count[cond_cuid]
-  spawnerAbundance[spawnerAbundance < 0 & !is.na(spawnerAbundance)] <- NA
-  spawnerAbundance[spawnerAbundance == 0 & !is.na(spawnerAbundance)] <- 1
-  names(spawnerAbundance) <- spawnerabundance_cu$year[cond_cuid]
-  
-  # Simulate the time series to obtain the 95% CI for the percentile 
-  # benchmarks
-  modelCI <- modelBoot(series = spawnerAbundance, 
-                       numLags = numLags, # numLags is the lag for the autocorrelation; default is just 1 year
-                       nBoot = nBoot,
-                       benchmarks = benchmarks,
-                       aic = aic)  # to be able to compare
-  return(modelCI)
-}
-
-# 
-ar_cuid_hist <- function(cuid, nBoot = 5000, numLags = 1, benchmarks = c(.25,.5,.75),
-                        spawnerabundance_cu, x_max = NA, aic = F){
-  
-  cond_cuid <- spawnerabundance_cu$cuid == cuid[1] # only one cuid at a time
-  
-  spawnerAbundance <- spawnerabundance_cu$estimated_count[cond_cuid]
-  spawnerAbundance[spawnerAbundance < 0 & !is.na(spawnerAbundance)] <- NA
-  spawnerAbundance[spawnerAbundance == 0 & !is.na(spawnerAbundance)] <- 1
-  # spawnerAbundance[spawnerAbundance < 0 ] <- NA
-  # spawnerAbundance[spawnerAbundance == 0 ] <- 1
-  names(spawnerAbundance) <- spawnerabundance_cu$year[cond_cuid]
-  
-  # Simulate the time series to obtain the 95% CI for the percentile 
-  # benchmarks
-  modelCI <- modelBoot(series = spawnerAbundance, 
-                       numLags = numLags, # numLags is the lag for the autocorrelation; default is just 1 year
-                       nBoot = nBoot,
-                       benchmarks = benchmarks,
-                       aic = aic)  # to be able to compare
-  
-  modelCI <- ar_cuid_fun()
-  
-  bench_25 <- quantile(x = spawnerAbundance, probs = .25, na.rm = T)
-  bench_75 <- quantile(x = spawnerAbundance, probs = .75, na.rm = T)
-  
-  bench_25_025CI <- quantile(x = modelCI$benchmarkBoot[,"benchmark_0.25"], 
-                              probs = .025, na.rm = T)
-  bench_25_975CI <- quantile(x = modelCI$benchmarkBoot[,"benchmark_0.25"], 
-                              probs = .975, na.rm = T)
-  bench_25_median <- quantile(x = modelCI$benchmarkBoot[,"benchmark_0.25"], 
-                             probs = .5, na.rm = T)
-  bench_75_median <- quantile(x = modelCI$benchmarkBoot[,"benchmark_0.75"], 
-                             probs = .5, na.rm = T)
-  bench_75_025CI <- quantile(x = modelCI$benchmarkBoot[,"benchmark_0.75"], 
-                             probs = .025, na.rm = T)
-  bench_75_975CI <- quantile(x = modelCI$benchmarkBoot[,"benchmark_0.75"], 
-                             probs = .975, na.rm = T)
-  
-  layout(matrix(1:2, nrow = 2))
-  
-  par(mar = c(5,5,3,.5))
-  
-  pl <- hist(modelCI$benchmarkBoot[,"benchmark_0.25"], plot = F)
-  
-  pu <- hist(modelCI$benchmarkBoot[,"benchmark_0.75"], plot = F)
-  
-  y_max <- max(pl$counts,pu$counts)
-  
-  x_min <- min(spawnerAbundance,na.rm = T) * .9
-  if(is.na(x_max)){
-    x_max <- max(spawnerAbundance,na.rm = T) * 1
-  }
-  
-  plot(pl, main = "Simulated lower benchmark", col = alpha("#C06363",.4),
-       xlab = "Lower and hupper benchmark (nb of fish)", xlim = 
-         c(x_min,x_max), ylim = c(0,y_max))
-  plot(pu,  main = "Simulated upper benchmark", 
-       xlab = "", xlim = c(x_min,x_max), 
-       col = alpha("#83B687",.4), add = T)
-  
-  segments(x0 = bench_25, y0 = 0, x1 = bench_25, y1 = nBoot, lwd = 2, col = "#C06363")
-  segments(x0 = bench_25_median, y0 = 0, x1 = bench_25_median, y1 = nBoot, lwd = 2, 
-           col = "#C06363", lty = 2)
-  arrows(x0 = bench_25_025CI, y0 = y_max * .8, x1 = bench_25_975CI, y1 = y_max * .8, 
-         length = .2, angle = 90, lwd = 2, col = "#C06363", code = 3)
-  
-  segments(x0 = bench_75, y0 = 0, x1 = bench_75, y1 = nBoot, lwd = 2, col = "#83B687")
-  segments(x0 = bench_75_median, y0 = 0, x1 = bench_75_median, y1 = nBoot, lwd = 2, 
-           col = "#83B687", lty = 2)
-  arrows(x0 = bench_75_025CI, y0 = y_max * .7, x1 = bench_75_975CI, y1 = y_max * .7, 
-         length = .2, angle = 90, lwd = 2, col = "#83B687", code = 3)
-  
-  legend("right",c("median data","median simulated data"), lty = c(1,2), 
-         lwd = 2, bty = "n")
-  legend("topright",paste(spawnerabundance_cu$region[cond_cuid] |> unique(),
-                          spawnerabundance_cu$species_name[cond_cuid]|> unique(),
-                          spawnerabundance_cu$cu_name_pse[cond_cuid]|> unique(), sep = "-"), 
-         bty = "n")
-  
-  # bootstrap the time series
-  n_noNA <- sum(!is.na(spawnerAbundance))
-  spawnerAbundance_noNA <- spawnerAbundance[!is.na(spawnerAbundance)]
-  benchmarks_bootstrap <- matrix(nrow = nBoot, ncol = length(benchmarks))
-  colnames(benchmarks_bootstrap) <- paste("benchmark",benchmarks, sep = "_")
-  for(i in 1:nBoot){
-    sa_here <- sample(spawnerAbundance_noNA,size = n_noNA, replace = T)
-    benchmarks_bootstrap[i,] <- quantile(x = sa_here, probs = benchmarks)
-  }
-  
-  pl <- hist(benchmarks_bootstrap[,"benchmark_0.25"], plot = F)
-  
-  pu <- hist(benchmarks_bootstrap[,"benchmark_0.75"], plot = F)
-  
-  y_max <- max(pl$counts,pu$counts)
-  
-  bench_25_025CI <- quantile(x = benchmarks_bootstrap[,"benchmark_0.25"], 
-                             probs = .025, na.rm = T)
-  bench_25_975CI <- quantile(x = benchmarks_bootstrap[,"benchmark_0.25"], 
-                             probs = .975, na.rm = T)
-  bench_25_median <- quantile(x = benchmarks_bootstrap[,"benchmark_0.25"], 
-                              probs = .5, na.rm = T)
-  bench_75_median <- quantile(x = benchmarks_bootstrap[,"benchmark_0.75"], 
-                              probs = .5, na.rm = T)
-  bench_75_025CI <- quantile(x = benchmarks_bootstrap[,"benchmark_0.75"], 
-                             probs = .025, na.rm = T)
-  bench_75_975CI <- quantile(x = benchmarks_bootstrap[,"benchmark_0.75"], 
-                             probs = .975, na.rm = T)
-  
-  plot(pl, main = "Bootstrapped lower benchmark", col = alpha("#C06363",.4),
-       xlab = "Lower and upper benchmark (nb of fish)", xlim = c(x_min,x_max),
-       ylim = c(0,y_max))
-  plot(pu,  main = "Bootstrapped upper benchmark", 
-       xlab = "", xlim = c(x_min,x_max), 
-       col = alpha("#83B687",.4), add = T)
-  
-  segments(x0 = bench_25, y0 = 0, x1 = bench_25, y1 = nBoot, lwd = 2, col = "#C06363")
-  segments(x0 = bench_25_median, y0 = 0, x1 = bench_25_median, y1 = nBoot, lwd = 2, 
-           col = "#C06363", lty = 2)
-  arrows(x0 = bench_25_025CI, y0 = y_max * .8, x1 = bench_25_975CI, y1 = y_max * .8, 
-         length = .2, angle = 90, lwd = 2, col = "#C06363", code = 3)
-  
-  segments(x0 = bench_75, y0 = 0, x1 = bench_75, y1 = nBoot, lwd = 2, col = "#83B687")
-  segments(x0 = bench_75_median, y0 = 0, x1 = bench_75_median, y1 = nBoot, lwd = 2, 
-           col = "#83B687", lty = 2)
-  arrows(x0 = bench_75_025CI, y0 = y_max * .7, x1 = bench_75_975CI, y1 = y_max * .7, 
-         length = .2, angle = 90, lwd = 2, col = "#83B687", code = 3)
-  
-}
+layout(matrix(1))
+par(mar = c(4.5,4.5,2.5,1))
+bootstrap_cuid_hist_fun(bootOutput = bootOutput, benchmarks = benchmarks, 
+												main = "Bootstrap & auto-regression", legend_show = F)
 ```
 
 
+```{r, echo = FALSE}
+i <- 5
+plot_spawnerAbundance_benchmarks_fun(cuid = show[cond,]$cuid[i],
+                                     cuspawnerabundance = cuspawnerabundance, 
+                                     dataset101_biological_status = dataset101_biological_status, 
+                                     dataset102_benchmarks = dataset102_benchmarks, 
+                                     conservationunits_decoder = conservationunits_decoder, 
+                                     figure_print = F, # figure_print, 
+                                     wd_figures = wd_figures)
+```
+
+```{r, echo=FALSE}
+bootOutput <- bootstrap_ar_cuid_fun(cuid = show[cond,]$cuid[i], 
+																		nBoot = nBoot, numLags = numLags, 
+																		benchmarks = benchmarks, 
+																		cuspawnerabundance = cuspawnerabundance)
+
+layout(matrix(1))
+par(mar = c(4.5,4.5,2.5,1))
+bootstrap_cuid_hist_fun(bootOutput = bootOutput, benchmarks = benchmarks, 
+												main = "Bootstrap & auto-regression", legend_show = F)
+```
+
+```{r, echo = FALSE}
+i <- 6
+plot_spawnerAbundance_benchmarks_fun(cuid = show[cond,]$cuid[i],
+                                     cuspawnerabundance = cuspawnerabundance, 
+                                     dataset101_biological_status = dataset101_biological_status, 
+                                     dataset102_benchmarks = dataset102_benchmarks, 
+                                     conservationunits_decoder = conservationunits_decoder, 
+                                     figure_print = F, # figure_print, 
+                                     wd_figures = wd_figures)
+```
+
+```{r, echo=FALSE}
+bootOutput <- bootstrap_ar_cuid_fun(cuid = show[cond,]$cuid[i], 
+																		nBoot = nBoot, numLags = numLags, 
+																		benchmarks = benchmarks, 
+																		cuspawnerabundance = cuspawnerabundance)
+
+layout(matrix(1))
+par(mar = c(4.5,4.5,2.5,1))
+bootstrap_cuid_hist_fun(bootOutput = bootOutput, benchmarks = benchmarks, 
+												main = "Bootstrap & auto-regression", legend_show = F)
+```
+
+```{r, echo = FALSE}
+i <- 7
+plot_spawnerAbundance_benchmarks_fun(cuid = show[cond,]$cuid[i],
+                                     cuspawnerabundance = cuspawnerabundance, 
+                                     dataset101_biological_status = dataset101_biological_status, 
+                                     dataset102_benchmarks = dataset102_benchmarks, 
+                                     conservationunits_decoder = conservationunits_decoder, 
+                                     figure_print = F, # figure_print, 
+                                     wd_figures = wd_figures)
+```
+
+```{r, echo=FALSE}
+bootOutput <- bootstrap_ar_cuid_fun(cuid = show[cond,]$cuid[i], 
+																		nBoot = nBoot, numLags = numLags, 
+																		benchmarks = benchmarks, 
+																		cuspawnerabundance = cuspawnerabundance)
+
+layout(matrix(1))
+par(mar = c(4.5,4.5,2.5,1))
+bootstrap_cuid_hist_fun(bootOutput = bootOutput, benchmarks = benchmarks, 
+												main = "Bootstrap & auto-regression", legend_show = F)
+```
+
+Cases where there is missing data and big gap between two consecutive subsets of the time series: 
+
+```{r, echo = FALSE}
+i <- 3
+plot_spawnerAbundance_benchmarks_fun(cuid = show[cond,]$cuid[i],
+                                     cuspawnerabundance = cuspawnerabundance, 
+                                     dataset101_biological_status = dataset101_biological_status, 
+                                     dataset102_benchmarks = dataset102_benchmarks, 
+                                     conservationunits_decoder = conservationunits_decoder, 
+                                     figure_print = F, # figure_print, 
+                                     wd_figures = wd_figures)
+```
+
+```{r, echo=FALSE}
+bootOutput <- bootstrap_ar_cuid_fun(cuid = show[cond,]$cuid[i], 
+																		nBoot = nBoot, numLags = numLags, 
+																		benchmarks = benchmarks, 
+																		cuspawnerabundance = cuspawnerabundance)
+
+layout(matrix(1))
+par(mar = c(4.5,4.5,2.5,1))
+bootstrap_cuid_hist_fun(bootOutput = bootOutput, benchmarks = benchmarks, 
+												main = "Bootstrap & auto-regression", legend_show = F)
+```
+
+```{r, echo = FALSE}
+i <- 4
+plot_spawnerAbundance_benchmarks_fun(cuid = show[cond,]$cuid[i],
+                                     cuspawnerabundance = cuspawnerabundance, 
+                                     dataset101_biological_status = dataset101_biological_status, 
+                                     dataset102_benchmarks = dataset102_benchmarks, 
+                                     conservationunits_decoder = conservationunits_decoder, 
+                                     figure_print = F, # figure_print, 
+                                     wd_figures = wd_figures)
+```
+
+```{r, echo=FALSE}
+bootOutput <- bootstrap_ar_cuid_fun(cuid = show[cond,]$cuid[i], 
+																		nBoot = nBoot, numLags = numLags, 
+																		benchmarks = benchmarks, 
+																		cuspawnerabundance = cuspawnerabundance)
+
+layout(matrix(1))
+par(mar = c(4.5,4.5,2.5,1))
+bootstrap_cuid_hist_fun(bootOutput = bootOutput, benchmarks = benchmarks, 
+												main = "Bootstrap & auto-regression", legend_show = F)
+```
+
+## The benchmark(s) fall bellow the CI(s)
+
+```{r,echo=FALSE}
+cond <- show$percentile_lower < show$percentile_lower_025 |
+	show$percentile_upper < show$percentile_upper_025
+
+show[cond,]
+```
+
+```{r, echo = FALSE}
+i <- 1
+plot_spawnerAbundance_benchmarks_fun(cuid = show[cond,]$cuid[i],
+                                     cuspawnerabundance = cuspawnerabundance, 
+                                     dataset101_biological_status = dataset101_biological_status, 
+                                     dataset102_benchmarks = dataset102_benchmarks, 
+                                     conservationunits_decoder = conservationunits_decoder, 
+                                     figure_print = F, # figure_print, 
+                                     wd_figures = wd_figures)
+```
+
+```{r, echo=FALSE}
+bootOutput <- bootstrap_ar_cuid_fun(cuid = show[cond,]$cuid[i], 
+																		nBoot = nBoot, numLags = numLags, 
+																		benchmarks = benchmarks, 
+																		cuspawnerabundance = cuspawnerabundance)
+
+layout(matrix(1))
+par(mar = c(4.5,4.5,2.5,1))
+bootstrap_cuid_hist_fun(bootOutput = bootOutput, benchmarks = benchmarks, 
+												main = "Bootstrap & auto-regression", legend_show = F)
+```
+
+```{r, echo = FALSE}
+i <- 2
+plot_spawnerAbundance_benchmarks_fun(cuid = show[cond,]$cuid[i],
+                                     cuspawnerabundance = cuspawnerabundance, 
+                                     dataset101_biological_status = dataset101_biological_status, 
+                                     dataset102_benchmarks = dataset102_benchmarks, 
+                                     conservationunits_decoder = conservationunits_decoder, 
+                                     figure_print = F, # figure_print, 
+                                     wd_figures = wd_figures)
+```
+
+```{r, echo=FALSE}
+bootOutput <- bootstrap_ar_cuid_fun(cuid = show[cond,]$cuid[i], 
+																		nBoot = nBoot, numLags = numLags, 
+																		benchmarks = benchmarks, 
+																		cuspawnerabundance = cuspawnerabundance)
+
+layout(matrix(1))
+par(mar = c(4.5,4.5,2.5,1))
+bootstrap_cuid_hist_fun(bootOutput = bootOutput, benchmarks = benchmarks, 
+												main = "Bootstrap & auto-regression", legend_show = F)
+```
+
+```{r, echo = FALSE}
+i <- 3
+plot_spawnerAbundance_benchmarks_fun(cuid = show[cond,]$cuid[i],
+                                     cuspawnerabundance = cuspawnerabundance, 
+                                     dataset101_biological_status = dataset101_biological_status, 
+                                     dataset102_benchmarks = dataset102_benchmarks, 
+                                     conservationunits_decoder = conservationunits_decoder, 
+                                     figure_print = F, # figure_print, 
+                                     wd_figures = wd_figures)
+```
+
+```{r, echo=FALSE}
+bootOutput <- bootstrap_ar_cuid_fun(cuid = show[cond,]$cuid[i], 
+																		nBoot = nBoot, numLags = numLags, 
+																		benchmarks = benchmarks, 
+																		cuspawnerabundance = cuspawnerabundance)
+
+layout(matrix(1))
+par(mar = c(4.5,4.5,2.5,1))
+bootstrap_cuid_hist_fun(bootOutput = bootOutput, benchmarks = benchmarks, 
+												main = "Bootstrap & auto-regression", legend_show = F)
+```
+
+## Conclusion:
+
+It seems that the issue is observed either because of (i) a steady increase of decrease of the time series or (2) missing data that could generate relatively high increments between consecutive sub-series
+
+# Comparision of other bootstrapping approaches
 
 
 
+```{r, echo=FALSE, fig.height = 6, fig.width = 4}
+blockLength <- 1/4
+
+i <- 1
+
+bootOutput_bootar <- bootstrap_ar_cuid_fun(cuid = show$cuid[i], 
+																					 nBoot = nBoot, numLags = numLags, 
+																					 benchmarks = benchmarks, 
+																					 cuspawnerabundance = cuspawnerabundance)
+
+bootOutput_bootNaive <- bootstrap_cuid_fun(cuid = show$cuid[i], 
+																					nBoot = nBoot,
+																					benchmarks = benchmarks, 
+																					cuspawnerabundance = cuspawnerabundance)
+
+bootOutput_bootBlock <- bootstrap_block_cuid_fun(cuid = show$cuid[i], 
+																								 nBoot = nBoot,
+																								 benchmarks = benchmarks, 
+																								 blockLength = blockLength,
+																								 cuspawnerabundance = cuspawnerabundance)
+
+layout(matrix(1:3, nrow = 3))
+par(mar = c(4.5,4.5,2.5,1))
+
+x_min <- 300
+x_max <- 1600
+	
+bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootar, benchmarks = benchmarks, 
+												main = "Bootstrap & auto-regression", legend_show = F, 
+												x_min = x_min, x_max = x_max)
+
+bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootBlock, benchmarks = benchmarks, 
+												main = "Block bootstrap", legend_show = F,
+												x_min = x_min, x_max = x_max)
+
+bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootNaive, benchmarks = benchmarks, 
+												main = "Naive bootstrap", legend_show = F,
+												x_min = x_min, x_max = x_max)
+```
 
 
