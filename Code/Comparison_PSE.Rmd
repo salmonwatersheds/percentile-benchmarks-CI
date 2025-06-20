@@ -82,6 +82,27 @@ rownames(show) <- NULL
 show
 ```
 
+In practice, this is not a problem for the CUs whose biostatus is assessed with the "sr" benchmakrs, or is "data-deficient" or "not-assessed". Here below are the CUs which their biostatus determined by the percentile benchmarks:
+
+```{r, echo = F}
+cond_cuid <- dataset101_biological_status$cuid %in% show$cuid
+cond_percent <- dataset101_biological_status$psf_status_type == "percentile" & 
+	!is.na(dataset101_biological_status$psf_status_type)
+cond_123 <- dataset101_biological_status$psf_status_code %in% 1:3
+
+dataset101_biological_status[cond_cuid & cond_percent & cond_123,
+														 c("region","species_name","cu_name_pse","cuid","psf_status_type","psf_status")]
+```
+
+But we also show the time series and benchmarks and their CIs to CUs with "no estimates of spawner abundance in the most recent generation" (`psf_status_code` = 8). Here below are the ones concerned that also have their biostatus estimated with the percentile approach:
+
+```{r, echo = F}
+cond_8 <- dataset101_biological_status$psf_status_code_all == 8 # it has to be with psf_status_code_all
+
+dataset101_biological_status[cond_cuid & cond_percent & cond_8,
+														 c("region","species_name","cu_name_pse","cuid","psf_status_type","psf_status")]
+```
+
 We separate the CUs depending if their benchmark(s) fall above or below their simulated CI.
 
 ## The benchmark(s) fall above the CI(s)
@@ -813,6 +834,14 @@ Fixed but barely (?).
 
 - The issue is not fixed when individual points in the original time series have extreme values (notably close to 0, e.g. with 582, 231).
 
+- Among the CUs for which the issue would show up on the PSE:
+	
+	- Yukon CM Middle Yukon (1213) with "percentile" benchmarks: fixed
+	
+	- CC CK Docee (509) & Skeena CM Middle Skeena (214), "data-deficient": fixed
+	
+	- CC CO Smith-Inlet (516), "data-deficient": barely fixed.
+
 ## Comparision of other bootstrapping approaches
 
 ### Methods
@@ -825,7 +854,7 @@ We set the length of the block for the block bootstrapping approach to 1/4 of th
 blockLength <- 1/4
 ```
 
-For all three approaches, NAs at the extremities are removed, but the ones in the original time series are left. Consequently, the simulated time series obtained with the block and naive bootstrapping approach can have NAs. For instance:
+For all three approaches, NAs at the extremities are removed, but the ones in the original time series are left. Consequently, the simulated time series obtained with the block and naive bootstrapping approach can have NAs. For instance, the figure below shows four simulated time series (in red) compared to the original time series (in grey) for Skeena CO Upper Skeena (231):
 
 ```{r, echo = FALSE}
 cuid <- 231
@@ -849,6 +878,21 @@ for(i in 1:4){
 	bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_231,prop_nb_seriesSim = .0001,
 												col_simul = "red", alpha = .5, col_orginal = alpha("black",.3),
 												main = "Block bootstrap", legend_show = F, 
+												show_benchmarks = F, show_CI = F)
+}
+```
+
+In this particular case where there are a lot of missing values in the original time series, the simulated ones can have even more NAs values. **QUESTION:** how to deal with NAs in this case?
+
+The naive bootstrapping approach also potenially generate time series with lots of NAs in this cases, for instance:
+
+```{r, echo=FALSE, fig.height = 5, fig.width = 8}
+layout(matrix(1:4, nrow = 2, byrow = T))
+par(mar = c(4.5,4.5,2.5,1))
+for(i in 1:4){
+	bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootNaive_231,prop_nb_seriesSim = .0001,
+												col_simul = "red", alpha = .5, col_orginal = alpha("black",.3),
+												main = "Naive bootstrap", legend_show = F, 
 												show_benchmarks = F, show_CI = F)
 }
 ```
@@ -922,12 +966,6 @@ bootOutput_bootBlock_1213 <- bootstrap_block_cuid_fun(cuid = cuid,
 																								 benchmarks = benchmarks, 
 																								 blockLength = blockLength,
 																								 cuspawnerabundance = cuspawnerabundance)
-```
-
-```{r, echo=FALSE}
-bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_1213,prop_nb_seriesSim = .0005,
-												col_simul = "grey40", alpha = .5, 
-												main = "Block bootstrap", legend_show = F)
 ```
 
 ```{r, echo = FALSE}
@@ -1019,7 +1057,7 @@ bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootNaive_326,prop_nb_seriesSim 
 												main = "Naive bootstrap", legend_show = F)
 ```
 
-The two alternative bootstrap methods do not generate extreme upper benchmark values.
+The two alternative bootstrap methods do not generate extreme upper benchmark values. Seems strange that the auto-regression approach generate such high abundances?!
 
 ```{r, echo = FALSE}
 cuid <- 231
@@ -1147,7 +1185,6 @@ bootOutput_bootBlock_509_05 <- bootstrap_block_cuid_fun(cuid = cuid,
 																								 benchmarks = benchmarks, 
 																								 blockLength = blockLength,
 																								 cuspawnerabundance = cuspawnerabundance)
-
 blockLength <- 1/6
 bootOutput_bootBlock_509_017 <- bootstrap_block_cuid_fun(cuid = cuid, 
 																								 nBoot = nBoot,
@@ -1161,6 +1198,27 @@ bootOutput_bootBlock_509_083 <- bootstrap_block_cuid_fun(cuid = cuid,
 																								 benchmarks = benchmarks, 
 																								 blockLength = blockLength,
 																								 cuspawnerabundance = cuspawnerabundance)
+
+# blockLength <- 3
+# bootOutput_bootBlock_509_3 <- bootstrap_block_cuid_fun(cuid = cuid, 
+# 																								 nBoot = nBoot,
+# 																								 benchmarks = benchmarks, 
+# 																								 blockLength = blockLength,
+# 																								 cuspawnerabundance = cuspawnerabundance)
+# 
+# blockLength <- 5
+# bootOutput_bootBlock_509_5 <- bootstrap_block_cuid_fun(cuid = cuid, 
+# 																								 nBoot = nBoot,
+# 																								 benchmarks = benchmarks, 
+# 																								 blockLength = blockLength,
+# 																								 cuspawnerabundance = cuspawnerabundance)
+# 
+# blockLength <- 10
+# bootOutput_bootBlock_509_10 <- bootstrap_block_cuid_fun(cuid = cuid, 
+# 																								 nBoot = nBoot,
+# 																								 benchmarks = benchmarks, 
+# 																								 blockLength = blockLength,
+# 																								 cuspawnerabundance = cuspawnerabundance)
 ```
 
 ```{r, echo = FALSE}
@@ -1176,36 +1234,68 @@ x_min <- 300
 x_max <- 1800
 
 bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootBlock_509_05, benchmarks = benchmarks, 
-												main = "Block bootstrap (1/2)", legend_show = F,
+												main = paste0("Block bootstrap (1/2 --> ",bootOutput_bootBlock_509_05$blockLength,")"),
+												legend_show = F,
 												x_min = x_min, x_max = x_max)
 
 bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_509_05,prop_nb_seriesSim = .05,
 												col_simul = "grey40", alpha = .1, 
-												main = "Block bootstrap (1/2)", legend_show = F)
+												main = paste0("Block bootstrap (1/2 --> ",bootOutput_bootBlock_509_05$blockLength,")"), 
+												legend_show = F)
 
 bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootBlock_509, benchmarks = benchmarks, 
-												main = "Block bootstrap (1/4)", legend_show = F,
+												main = paste0("Block bootstrap (1/4 --> ",bootOutput_bootBlock_509$blockLength,")"),
+												legend_show = F,
 												x_min = x_min, x_max = x_max)
 
 bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_509,prop_nb_seriesSim = .05,
 												col_simul = "grey40", alpha = .1, 
-												main = "Block bootstrap (1/4)", legend_show = F)
+												main = paste0("Block bootstrap (1/4 --> ",bootOutput_bootBlock_509$blockLength,")"), 
+												legend_show = F)
 
 bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootBlock_509_017, benchmarks = benchmarks, 
-												main = "Block bootstrap (1/6)", legend_show = F,
+												main = paste0("Block bootstrap (1/6 --> ",bootOutput_bootBlock_509_017$blockLength,")"), 
+												legend_show = F,
 												x_min = x_min, x_max = x_max)
 
 bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_509_017,prop_nb_seriesSim = .05,
 												col_simul = "grey40", alpha = .1, 
-												main = "Block bootstrap (1/6)", legend_show = F)
+												main = paste0("Block bootstrap (1/6 --> ",bootOutput_bootBlock_509_017$blockLength,")"), 
+												legend_show = F)
 
 bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootBlock_509_083, benchmarks = benchmarks, 
-												main = "Block bootstrap (1/12)", legend_show = F,
+												main = paste0("Block bootstrap (1/12 --> ",bootOutput_bootBlock_509_083$blockLength,")"), 
+												legend_show = F,
 												x_min = x_min, x_max = x_max)
 
 bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_509_083,prop_nb_seriesSim = .05,
 												col_simul = "grey40", alpha = .1, 
-												main = "Block bootstrap (1/12)", legend_show = F)
+												main = paste0("Block bootstrap (1/12 --> ",bootOutput_bootBlock_509_083$blockLength,")"), 
+												legend_show = F)
+
+# bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootBlock_509_3, benchmarks = benchmarks, 
+# 												main = "Block bootstrap (3)", legend_show = F,
+# 												x_min = x_min, x_max = x_max)
+# 
+# bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_509_3,prop_nb_seriesSim = .05,
+# 												col_simul = "grey40", alpha = .1, 
+# 												main = "Block bootstrap (3)", legend_show = F)
+# 
+# bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootBlock_509_5, benchmarks = benchmarks, 
+# 												main = "Block bootstrap (5)", legend_show = F,
+# 												x_min = x_min, x_max = x_max)
+
+# bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_509_5,prop_nb_seriesSim = .05,
+# 												col_simul = "grey40", alpha = .1, 
+# 												main = "Block bootstrap (5)", legend_show = F)
+# 
+# bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootBlock_509_10, benchmarks = benchmarks, 
+# 												main = "Block bootstrap (10)", legend_show = F,
+# 												x_min = x_min, x_max = x_max)
+# 
+# bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_509_10,prop_nb_seriesSim = .05,
+# 												col_simul = "grey40", alpha = .1, 
+# 												main = "Block bootstrap (10)", legend_show = F)
 ```
 
 
@@ -1248,36 +1338,44 @@ x_min <- 0
 x_max <- 18000
 
 bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootBlock_231_05, benchmarks = benchmarks, 
-												main = "Block bootstrap (1/2)", legend_show = F,
+												main = paste0("Block bootstrap (1/2 --> ",bootOutput_bootBlock_231_05$blockLength,")"),
+												legend_show = F,
 												x_min = x_min, x_max = x_max)
 
 bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_231_05,prop_nb_seriesSim = .05,
 												col_simul = "grey40", alpha = .1, 
-												main = "Block bootstrap (1/2)", legend_show = F)
+												main = paste0("Block bootstrap (1/2 --> ",bootOutput_bootBlock_231_05$blockLength,")"), 
+												legend_show = F)
 
 bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootBlock_231, benchmarks = benchmarks, 
-												main = "Block bootstrap (1/4)", legend_show = F,
+												main = paste0("Block bootstrap (1/4 --> ",bootOutput_bootBlock_231$blockLength,")"),
+												legend_show = F,
 												x_min = x_min, x_max = x_max)
 
 bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_231,prop_nb_seriesSim = .05,
 												col_simul = "grey40", alpha = .1, 
-												main = "Block bootstrap (1/4)", legend_show = F)
+												main = paste0("Block bootstrap (1/4 --> ",bootOutput_bootBlock_231$blockLength,")"), 
+												legend_show = F)
 
 bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootBlock_231_017, benchmarks = benchmarks, 
-												main = "Block bootstrap (1/6)", legend_show = F,
+												main = paste0("Block bootstrap (1/6 --> ",bootOutput_bootBlock_231_017$blockLength,")"), 
+												legend_show = F,
 												x_min = x_min, x_max = x_max)
 
 bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_231_017,prop_nb_seriesSim = .05,
 												col_simul = "grey40", alpha = .1, 
-												main = "Block bootstrap (1/6)", legend_show = F)
+												main = paste0("Block bootstrap (1/6 --> ",bootOutput_bootBlock_231_017$blockLength,")"), 
+												legend_show = F)
 
 bootstrap_cuid_hist_fun(bootOutput = bootOutput_bootBlock_231_083, benchmarks = benchmarks, 
-												main = "Block bootstrap (1/12)", legend_show = F,
+												main = paste0("Block bootstrap (1/12 --> ",bootOutput_bootBlock_231_083$blockLength,")"), 
+												legend_show = F,
 												x_min = x_min, x_max = x_max)
 
 bootstrap_cuid_plot_fun(bootOutput = bootOutput_bootBlock_231_083,prop_nb_seriesSim = .05,
 												col_simul = "grey40", alpha = .1, 
-												main = "Block bootstrap (1/12)", legend_show = F)
+												main = paste0("Block bootstrap (1/12 --> ",bootOutput_bootBlock_231_083$blockLength,")"), 
+												legend_show = F)
 
 ```
 
