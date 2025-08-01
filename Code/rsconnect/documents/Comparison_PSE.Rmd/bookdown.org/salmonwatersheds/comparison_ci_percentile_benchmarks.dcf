@@ -1,0 +1,12 @@
+name: comparison_ci_percentile_benchmarks
+title: Comparison_CI_percentile_benchmarks
+username: salmonwatersheds
+account: salmonwatersheds
+server: bookdown.org
+hostUrl: https://bookdown.org/__api__
+appId: 15434
+bundleId: 107161
+url: https://bookdown.org/salmonwatersheds/comparison_ci_percentile_benchmarks/
+version: 1
+asMultiple: FALSE
+asStatic: TRUE

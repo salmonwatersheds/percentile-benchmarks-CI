@@ -82,7 +82,7 @@ rownames(show) <- NULL
 show
 ```
 
-In practice, this is not a problem for the CUs whose biostatus is assessed with the "sr" benchmakrs, or is "data-deficient" or "not-assessed". Here below are the CUs which their biostatus determined by the percentile benchmarks:
+In practice, this is not a problem for the CUs whose biostatus is assessed with the "sr" benchmarks, or is "data-deficient" or "not-assessed". Here below are the CUs with their biostatus determined by the percentile benchmarks:
 
 ```{r, echo = F}
 cond_cuid <- dataset101_biological_status$cuid %in% show$cuid
@@ -410,7 +410,7 @@ bootstrap_cuid_hist_fun(bootOutput = bootOutput_231, benchmarks = benchmarks,
 
 ## Observations:
 
-It seems that the issue is observed either because of (i) a steady increase of decrease of the time series or (2) missing data that could generate relatively high increments between consecutive sub-series.
+It seems that the issue is observed either because of (i) a steady increase or decrease of the time series or (2) missing data that could generate relatively high increments between consecutive sub-series.
 
 Let's look at the simulated time series (10% of them) and CI vs. the real time series and benchmarks for certain of the these CUs:
 
@@ -479,6 +479,8 @@ Here, the simulated time series go much higher and never go as low as the origin
 ## Removing NAs at the extremities
 
 The methods so far does not remove the NAs on each tail of the time series. This could cause the simulated time series to be too long and to consequently more likely to reach extremes.
+
+Let's compare some examples:
 
 ```{r, echo = F}
 cuid <- 509
@@ -790,7 +792,7 @@ bootstrap_cuid_plot_fun(bootOutput = bootOutput_231_cut,
 												prop_nb_seriesSim = .05, alpha = .1, col_simul = "grey40")
 ```
 
-NOT FIIXED. Could be due to individual data points which are on the lower side. I do not know how individual data points are handled in the Yule-Walker method used to fit the auto-regression model.
+NOT FIXED. Could be due to individual data points which are on the lower side. I do not know how individual data points are handled in the Yule-Walker method used to fit the auto-regression model.
 
 ```{r, echo = F}
 cuid <- 516
